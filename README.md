@@ -11,8 +11,9 @@ This is useful when the built-in display is broken or hard to use and the iPad i
 - Presses the matching Screen Mirroring row.
 - Detects common "unable to connect" dialogs.
 - Dismisses failures, refreshes Control Center, and retries.
-- Installs an optional login app so the connection starts after login.
+- Installs an optional helper login app so the connection starts after login.
 - Installs a Quick Action so users can assign a keyboard shortcut.
+- Plays distinct sounds for shortcut feedback.
 - Includes a diagnostic command to list the devices macOS exposes in Screen Mirroring.
 
 macOS does not provide a supported public command-line API for Sidecar, so this project uses Accessibility UI automation.
@@ -48,7 +49,7 @@ Example:
 The installer creates:
 
 - Support files in `~/Library/Application Support/ipad-display-connector`
-- A login app in `~/Applications`
+- A helper app in `~/Applications`
 - A Quick Action in `~/Library/Services`
 
 ## One-Time macOS Permissions
@@ -59,7 +60,7 @@ Open:
 System Settings > Privacy & Security > Accessibility
 ```
 
-Enable the generated login app:
+Enable the generated helper app:
 
 ```text
 ~/Applications/Connect Your iPad Name Display.app
@@ -67,7 +68,7 @@ Enable the generated login app:
 
 If you run the command manually from Terminal, enable Terminal too.
 
-If you use the Quick Action, macOS may also ask for permission for Automator, Services, Shortcuts, or `osascript`, depending on how it launches on your system.
+The Quick Action opens the generated helper app, so the helper app is the main permission target.
 
 ## Keyboard Shortcut
 
@@ -80,9 +81,16 @@ After install:
 
 For example, you can assign `Command+0` if that does not conflict with the app you are using.
 
+Shortcut sounds:
+
+- `Ping`: the iPad already appears connected.
+- `Pop`: the iPad is not connected, so the connector is starting.
+- `Hero`: the connector finished successfully.
+- `Basso`: the connector failed or needs permission.
+
 ## Startup Behavior
 
-The installer adds a small login app:
+The installer adds a small helper app:
 
 ```text
 ~/Applications/Connect Your iPad Name Display.app
@@ -152,6 +160,18 @@ The connector does not toggle Accessibility, Wi-Fi, Bluetooth, Handoff, or Apple
 ```
 
 Logs are intentionally left in `~/Library/Logs`.
+
+The connector log is:
+
+```text
+~/Library/Logs/ipad-display-connector.log
+```
+
+The helper app / keyboard shortcut log is:
+
+```text
+~/Library/Logs/ipad-display-connector-shortcut.log
+```
 
 ## Project Layout
 

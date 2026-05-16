@@ -26,10 +26,9 @@ System Settings > Privacy & Security > Accessibility
 
 Enable the app that is launching the connector:
 
-- The generated login app in `~/Applications`
+- The generated helper app in `~/Applications`
 - Terminal, if running manually
-- Automator / Services / Shortcuts, if using a keyboard shortcut
-- `/usr/bin/osascript`, if macOS prompts for it
+- Automator / Services / Shortcuts, only if macOS prompts for them
 
 Accessibility is a macOS security permission. The connector does not and should not try to toggle it automatically.
 
@@ -59,7 +58,14 @@ Check these in order:
 1. `System Settings > Keyboard > Keyboard Shortcuts > Services`
 2. The service named `Connect DEVICE_NAME Display` has a shortcut.
 3. The shortcut does not conflict with the foreground app.
-4. Accessibility is enabled for the app macOS uses to run the service.
+4. Accessibility is enabled for the generated helper app in `~/Applications`.
+
+Shortcut sounds:
+
+- `Ping`: the iPad already appears connected.
+- `Pop`: the connector is starting because the iPad is not connected.
+- `Hero`: connection succeeded.
+- `Basso`: connection failed or a permission is missing.
 
 You can always run the same command manually:
 
@@ -73,6 +79,12 @@ The default log file is:
 
 ```text
 ~/Library/Logs/ipad-display-connector.log
+```
+
+The helper app / keyboard shortcut log is:
+
+```text
+~/Library/Logs/ipad-display-connector-shortcut.log
 ```
 
 The log includes:
