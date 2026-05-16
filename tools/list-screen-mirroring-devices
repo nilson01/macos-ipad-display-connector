@@ -1,0 +1,6 @@
+#!/bin/zsh
+set -u
+
+SCRIPT_DIR="${0:A:h}"
+PROJECT_DIR="${SCRIPT_DIR:h}"
+/usr/bin/osascript "$PROJECT_DIR/tools/list-screen-mirroring-devices.applescript"

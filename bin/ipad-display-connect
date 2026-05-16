@@ -1,0 +1,157 @@
+#!/bin/zsh
+set -u
+
+print_usage() {
+	/usr/bin/printf '%s\n' \
+		"Usage:" \
+		"  ipad-display-connect --device DEVICE_NAME [options]" \
+		"  ipad-display-connect DEVICE_NAME [options]" \
+		"" \
+		"Options:" \
+		"  --device NAME               Screen Mirroring target to connect." \
+		"  --attempts N                Retry count. Default: 6" \
+		"  --retry-delay SECONDS       Delay between attempts. Default: 5" \
+		"  --connect-wait SECONDS      Wait for a selected target to stabilize. Default: 35" \
+		"  --refresh-control-center    Restart Control Center between failed attempts." \
+		"  --no-refresh-control-center Do not restart Control Center between failed attempts." \
+		"  --log PATH                  Log path. Default: ~/Library/Logs/ipad-display-connector.log" \
+		"  -h, --help                  Show this help." \
+		"" \
+		"Environment fallbacks:" \
+		"  IPAD_DISPLAY_DEVICE_NAME, IPAD_DISPLAY_NAME" \
+		"  IPAD_DISPLAY_ATTEMPTS" \
+		"  IPAD_DISPLAY_RETRY_DELAY" \
+		"  IPAD_DISPLAY_CONNECT_WAIT" \
+		"  IPAD_DISPLAY_RESET_CONTROL_CENTER" \
+		"  IPAD_DISPLAY_LOG"
+}
+
+SCRIPT_DIR="${0:A:h}"
+PROJECT_DIR="${SCRIPT_DIR:h}"
+APPLESCRIPT_PATH="$PROJECT_DIR/lib/connect-ipad-display.applescript"
+
+device_name="${IPAD_DISPLAY_DEVICE_NAME:-${IPAD_DISPLAY_NAME:-}}"
+attempts="${IPAD_DISPLAY_ATTEMPTS:-6}"
+retry_delay="${IPAD_DISPLAY_RETRY_DELAY:-5}"
+connect_wait="${IPAD_DISPLAY_CONNECT_WAIT:-35}"
+reset_control_center="${IPAD_DISPLAY_RESET_CONTROL_CENTER:-1}"
+log_path="${IPAD_DISPLAY_LOG:-$HOME/Library/Logs/ipad-display-connector.log}"
+
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+		--device)
+			if [[ $# -lt 2 ]]; then
+				/usr/bin/printf 'Missing value for --device.\n' >&2
+				exit 64
+			fi
+			device_name="$2"
+			shift 2
+			;;
+		--attempts)
+			if [[ $# -lt 2 ]]; then
+				/usr/bin/printf 'Missing value for --attempts.\n' >&2
+				exit 64
+			fi
+			attempts="$2"
+			shift 2
+			;;
+		--retry-delay)
+			if [[ $# -lt 2 ]]; then
+				/usr/bin/printf 'Missing value for --retry-delay.\n' >&2
+				exit 64
+			fi
+			retry_delay="$2"
+			shift 2
+			;;
+		--connect-wait)
+			if [[ $# -lt 2 ]]; then
+				/usr/bin/printf 'Missing value for --connect-wait.\n' >&2
+				exit 64
+			fi
+			connect_wait="$2"
+			shift 2
+			;;
+		--refresh-control-center)
+			reset_control_center="1"
+			shift
+			;;
+		--no-refresh-control-center)
+			reset_control_center="0"
+			shift
+			;;
+		--log)
+			if [[ $# -lt 2 ]]; then
+				/usr/bin/printf 'Missing value for --log.\n' >&2
+				exit 64
+			fi
+			log_path="$2"
+			shift 2
+			;;
+		-h|--help)
+			print_usage
+			exit 0
+			;;
+		--*)
+			/usr/bin/printf 'Unknown option: %s\n' "$1" >&2
+			print_usage >&2
+			exit 64
+			;;
+		*)
+			if [[ -z "$device_name" ]]; then
+				device_name="$1"
+				shift
+			else
+				/usr/bin/printf 'Unexpected argument: %s\n' "$1" >&2
+				exit 64
+			fi
+			;;
+	esac
+done
+
+if [[ -z "$device_name" ]]; then
+	/usr/bin/printf 'Missing device name. Use --device "Your iPad Name".\n' >&2
+	exit 64
+fi
+
+case "$attempts$retry_delay$connect_wait$reset_control_center" in
+	*[!0-9]*)
+		/usr/bin/printf 'Attempts, retry delay, connect wait, and refresh flag must be numeric.\n' >&2
+		exit 64
+		;;
+esac
+
+if [[ ! -f "$APPLESCRIPT_PATH" ]]; then
+	/usr/bin/printf 'Could not find AppleScript engine at %s\n' "$APPLESCRIPT_PATH" >&2
+	exit 66
+fi
+
+if ! { /bin/mkdir -p "${log_path:h}" && : >> "$log_path"; } 2>/dev/null; then
+	log_path="/private/tmp/ipad-display-connector.log"
+	/bin/mkdir -p "${log_path:h}"
+fi
+
+log_preflight() {
+	local wifi_device
+	wifi_device="$(/usr/sbin/networksetup -listallhardwareports 2>/dev/null | /usr/bin/awk '/Hardware Port: Wi-Fi/{getline; print $2; exit}')"
+	if [[ -n "$wifi_device" ]]; then
+		/usr/sbin/networksetup -getairportpower "$wifi_device" 2>/dev/null || true
+	fi
+	/usr/sbin/system_profiler SPBluetoothDataType 2>/dev/null | /usr/bin/awk '/State:|Bluetooth Power:/{print; exit}' || true
+}
+
+{
+	/bin/date '+%Y-%m-%d %H:%M:%S Starting iPad display connector.'
+	/usr/bin/printf 'Target device: %s\n' "$device_name"
+	log_preflight
+	/usr/bin/osascript "$APPLESCRIPT_PATH" \
+		"$device_name" \
+		"$attempts" \
+		"$retry_delay" \
+		"$reset_control_center" \
+		"$connect_wait"
+	exit_status=$?
+	/bin/date "+%Y-%m-%d %H:%M:%S Finished with status $exit_status."
+	exit "$exit_status"
+} 2>&1 | /usr/bin/tee -a "$log_path"
+
+exit ${pipestatus[1]}
